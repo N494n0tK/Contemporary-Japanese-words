@@ -119,12 +119,21 @@
     titleEl.textContent = TITLES[name] || "";
     badgeEl.textContent = "";
     $$(".drawer-nav button").forEach((b) => b.classList.toggle("on", b.dataset.nav === name));
-    view.classList.remove("enter");
-    void view.offsetWidth;
-    view.classList.add("enter");
+    enterAnim();
     window.scrollTo(0, 0);
     (VIEWS[name] || VIEWS.home)(params);
     updateDrawerSub();
+  }
+
+  // 画面を出すときの「ふわっと出る」演出。終わったら外す
+  // （付けたままだと、あとから差し込んだ要素＝裏で用意した次のカードなどにも演出がかかってしまう）
+  let enterTimer;
+  function enterAnim() {
+    view.classList.remove("enter");
+    void view.offsetWidth;
+    view.classList.add("enter");
+    clearTimeout(enterTimer);
+    enterTimer = setTimeout(() => view.classList.remove("enter"), 900);
   }
 
   function updateDrawerSub() {
@@ -376,6 +385,7 @@
 
     if (deck.i >= total) {
       badgeEl.textContent = "";
+      enterAnim();
       view.innerHTML = `${head}
         <div class="glass result">
           <div style="font-size:44px">🎉</div>
@@ -396,13 +406,14 @@
     view.innerHTML = `${head}
       <div class="progress-line"><i style="width:${(deck.i / total) * 100}%"></i></div>
       <div class="flip-scene">
-        <div class="flip" id="flip">${cardFace(w, false, "in")}${cardFace(w, true)}</div>
+        ${flipHtml(w, "", "in")}
       </div>
       <div class="answer-row">
         <button class="btn glass press tint-bad" data-ans="0"><span>まだ</span></button>
         <button class="btn glass press tint-good" data-ans="1"><span>覚えた</span></button>
       </div>`;
     bindCardHead();
+    requestAnimationFrame(preloadNext);
   }
 
   function cardFace(w, back, enter = "") {
@@ -451,6 +462,16 @@
     };
   }
 
+  // 次のカード（opacity をほぼ 0 にして下に置いておく）。ガラスの描画を先に済ませておくため
+  const flipHtml = (w, cls, enter = "") => `<div class="flip ${cls}"${cls ? "" : ' id="flip"'}>${cardFace(w, false, enter)}${cardFace(w, true)}</div>`;
+
+  function preloadNext() {
+    const scene = $(".flip-scene", view);
+    const next = deck.list[deck.i + 1];
+    if (!scene || !next || $(".flip.queued", scene)) return;
+    scene.insertAdjacentHTML("afterbegin", flipHtml(next, "queued"));
+  }
+
   function answerCard(known) {
     const flip = $("#flip");
     if (!flip) return;
@@ -463,27 +484,43 @@
       setProg(w.word, { s: LEARNING, ng: (p.ng || 0) + 1, streak: 0 });
       deck.unknown++;
     }
-    deck.i++;
 
-    // 今のカードを飛ばしつつ、次のカードをその下に差し込む。
-    // 画面全体は作り直さない（ガラス要素の作り直しが重く、判定後にもたつくため）
-    const face = $(".face:not(.is-hidden)", flip);
+    // 1) 今のカードを判定の方向へスッと飛ばす（覚えた → 右 / まだ → 左）
     flip.removeAttribute("id");
     flip.classList.add("leaving");
-    face.classList.remove("in", "next");
-    face.classList.add(known ? "out-r" : "out-l");
-    setTimeout(() => flip.remove(), 320);
+    const dir = known ? 1 : -1;
+    const out = flip.animate(
+      [
+        { transform: "translateX(0) rotate(0deg)", opacity: 1 },
+        { transform: `translateX(${dir * 70}%) rotate(${dir * 7}deg)`, opacity: 1, offset: 0.55 },
+        { transform: `translateX(${dir * 125}%) rotate(${dir * 12}deg)`, opacity: 0 },
+      ],
+      { duration: 300, easing: "cubic-bezier(.2,.75,.35,1)", fill: "forwards" }
+    );
+    out.onfinish = () => flip.remove();
 
+    deck.i++;
     if (deck.i >= deck.list.length) {
-      setTimeout(() => current === "cards" && renderCards(), 260);
+      setTimeout(() => current === "cards" && renderCards(), 240);
       return;
     }
-    const next = deck.list[deck.i];
-    flip.insertAdjacentHTML("beforebegin", `<div class="flip" id="flip">${cardFace(next, false, "next")}${cardFace(next, true)}</div>`);
+
+    // 2) 用意しておいた次のカードを同じ瞬間に前へ出す
+    let next = $(".flip.queued", view);
+    if (next) {
+      next.classList.remove("queued");
+      next.id = "flip";
+    } else {
+      flip.insertAdjacentHTML("beforebegin", flipHtml(deck.list[deck.i], "", "next"));
+    }
     badgeEl.textContent = `${deck.i + 1} / ${deck.list.length}`;
     const bar = $(".progress-line i", view);
     if (bar) bar.style.width = `${(deck.i / deck.list.length) * 100}%`;
+
+    // 3) 飛ばすアニメーションが走り出してから、さらに次のカードを裏で用意する
+    requestAnimationFrame(() => requestAnimationFrame(preloadNext));
   }
+
 
   function bindCardHead() {
     view.onclick = (e) => {
@@ -574,6 +611,7 @@
     if (quiz.i >= quiz.qs.length) return renderQuizResult();
     const q = quiz.qs[quiz.i];
     badgeEl.textContent = `Q ${quiz.i + 1} / ${quiz.qs.length}`;
+    enterAnim();
     const isW2M = q.mode === "w2m";
     view.innerHTML = `
       <div class="progress-line"><i style="width:${(quiz.i / quiz.qs.length) * 100}%"></i></div>
@@ -629,6 +667,7 @@
 
   function renderQuizResult() {
     badgeEl.textContent = "";
+    enterAnim();
     const n = quiz.qs.length;
     const r = quiz.score / n;
     const msg = r === 1 ? "パーフェクト！" : r >= 0.8 ? "すばらしい！" : r >= 0.5 ? "いい調子。" : "復習してもう一度！";
