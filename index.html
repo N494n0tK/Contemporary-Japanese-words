@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>現代文単語</title>
+  <meta name="description" content="スマホで学ぶ現代文単語。カード・クイズ・一覧で評論語や心情語を身につけよう。">
+  <meta name="theme-color" content="#1b1f3b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="現代文単語">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 背景（ガラス越しに透ける色の層） -->
+  <div class="backdrop" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+    <span class="blob b4"></span>
+  </div>
+
+  <header class="topbar glass" id="topbar">
+    <button class="icon-btn" id="menuBtn" aria-label="メニューを開く">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 7h16M4 12h11M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+    </button>
+    <h1 class="topbar-title" id="viewTitle">ホーム</h1>
+    <span class="topbar-badge" id="topBadge"></span>
+  </header>
+
+  <main id="view" class="view"></main>
+
+  <!-- サイドバー -->
+  <div class="scrim" id="scrim"></div>
+  <nav class="drawer glass" id="drawer" aria-label="メニュー" aria-hidden="true">
+    <div class="drawer-head">
+      <div class="drawer-logo">語</div>
+      <div>
+        <div class="drawer-title">現代文単語</div>
+        <div class="drawer-sub" id="drawerSub"></div>
+      </div>
+    </div>
+    <ul class="drawer-nav">
+      <li><button data-nav="home"><span class="ni">⌂</span>ホーム</button></li>
+      <li><button data-nav="cards"><span class="ni">❏</span>単語カード</button></li>
+      <li><button data-nav="quiz"><span class="ni">✎</span>4択クイズ</button></li>
+      <li><button data-nav="list"><span class="ni">☰</span>単語一覧</button></li>
+      <li><button data-nav="weak"><span class="ni">!</span>苦手な単語</button></li>
+      <li><button data-nav="settings"><span class="ni">⚙</span>設定</button></li>
+    </ul>
+    <p class="drawer-hint">左→右スワイプでいつでも開けます</p>
+  </nav>
+
+  <!-- 詳細シート -->
+  <div class="sheet-wrap" id="sheetWrap">
+    <div class="sheet glass" id="sheet"></div>
+  </div>
+
+  <div class="toast glass" id="toast"></div>
+
+  <script src="data/words.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
