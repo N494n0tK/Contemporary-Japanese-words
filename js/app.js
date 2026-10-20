@@ -791,6 +791,8 @@
     g.x = t.clientX;
 
     if (g.mode === null) {
+      // 右向きの横スワイプは、方向が決まる前の最初の動きから既定動作（ブラウザの戻る）を止める
+      if (!g.open && dx > 0 && Math.abs(dx) >= Math.abs(dy) && !sheetOpen()) e.preventDefault();
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
       const horizontal = Math.abs(dx) > Math.abs(dy) * 1.15;
       const scroller = g.target.closest && g.target.closest("[data-noswipe]");
@@ -851,8 +853,14 @@
   });
 
   // 履歴ガード：戻る操作が起きてもページを離れず、サイドバーの開閉に置き換える
+  // ホーム画面アプリでは履歴が無ければスワイプで戻れないので、履歴を一切作らない
+  // （ガード用の履歴を積むと、それ自体が「戻る」先になってしまう）
+  const standalone = navigator.standalone === true ||
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches;
   const GUARD = { gendaibunGuard: true };
   const armGuard = () => {
+    if (standalone) return;
     if (!(history.state && history.state.gendaibunGuard)) history.pushState(GUARD, "");
   };
   history.replaceState({ gendaibunBase: true }, "");
