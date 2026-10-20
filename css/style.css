@@ -30,6 +30,9 @@
   --top-h: 56px;
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
+  /* iOS のホーム画面アプリでは position:fixed の下端が画面より手前で止まることがあるため、
+     全画面で敷くものは下にはみ出させておく */
+  --over: 160px;
 
   --font-sans: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
   --font-serif: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
@@ -91,7 +94,10 @@ input { font: inherit; color: inherit; -webkit-user-select: text; user-select: t
 /* ---------- 背景 ---------- */
 .backdrop {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--over) * -1);
   overflow: hidden;
   z-index: 0;
   pointer-events: none;
@@ -532,7 +538,10 @@ input { font: inherit; color: inherit; -webkit-user-select: text; user-select: t
 /* ---------- サイドバー ---------- */
 .scrim {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--over) * -1);
   z-index: 40;
   background: rgba(8, 10, 30, 0.32);
   opacity: 0;
@@ -542,12 +551,12 @@ input { font: inherit; color: inherit; -webkit-user-select: text; user-select: t
 .drawer {
   position: fixed;
   z-index: 50;
-  top: calc(var(--safe-t) + 8px);
-  bottom: calc(var(--safe-b) + 8px);
-  left: 8px;
+  top: 0;
+  bottom: calc(var(--over) * -1);
+  left: 0;
   width: min(80vw, 320px);
-  padding: 22px 14px;
-  --radius: 32px;
+  padding: calc(var(--safe-t) + 22px) 14px calc(var(--over) + var(--safe-b) + 16px);
+  --radius: 0;
   --glass-bg: var(--glass-bg-strong);
   --glass-blur: 30px;
   transform: translateX(calc(-100% - 24px));
@@ -616,7 +625,10 @@ body.dragging .drawer, body.dragging .scrim { transition: none; }
 .sheet-wrap::before {
   content: "";
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--over) * -1);
   background: rgba(8, 10, 30, 0.3);
   opacity: 0;
   transition: opacity 0.35s var(--ease);
