@@ -396,7 +396,7 @@
     view.innerHTML = `${head}
       <div class="progress-line"><i style="width:${(deck.i / total) * 100}%"></i></div>
       <div class="flip-scene">
-        <div class="flip" id="flip">${cardFace(w, false, true)}${cardFace(w, true)}</div>
+        <div class="flip" id="flip">${cardFace(w, false, "in")}${cardFace(w, true)}</div>
       </div>
       <div class="answer-row">
         <button class="btn glass press tint-bad" data-ans="0"><span>まだ</span></button>
@@ -405,10 +405,10 @@
     bindCardHead();
   }
 
-  function cardFace(w, back, enter) {
+  function cardFace(w, back, enter = "") {
     const s = statusOf(w.word);
     if (!back) {
-      return `<div class="face glass press ${enter ? "in" : ""}" data-flip>
+      return `<div class="face glass press ${enter}" data-flip>
         <span class="tag">${w.no !== null ? `${esc(noLabel(w))} ・ ` : ""}${esc(w.category)}</span>
         <span class="status-dot ${STATUS_CLASS[s]}"></span>
         ${store.settings.cardMode === "m2w"
@@ -438,7 +438,7 @@
     const toBack = !flip.dataset.back;
     const a = flip.animate([{ transform: "scaleX(1)" }, { transform: "scaleX(0)" }], { duration: 110, easing: "cubic-bezier(.4,0,.9,.6)", fill: "forwards" });
     a.onfinish = () => {
-      front.classList.remove("in");
+      front.classList.remove("in", "next");
       front.classList.toggle("is-hidden", toBack);
       back.classList.toggle("is-hidden", !toBack);
       if (toBack) flip.dataset.back = "1"; else delete flip.dataset.back;
@@ -453,8 +453,7 @@
 
   function answerCard(known) {
     const flip = $("#flip");
-    if (!flip || flip.dataset.leaving) return;
-    flip.dataset.leaving = "1";
+    if (!flip) return;
     const w = deck.list[deck.i];
     const p = prog(w.word);
     if (known) {
@@ -464,10 +463,26 @@
       setProg(w.word, { s: LEARNING, ng: (p.ng || 0) + 1, streak: 0 });
       deck.unknown++;
     }
+    deck.i++;
+
+    // 今のカードを飛ばしつつ、次のカードをその下に差し込む。
+    // 画面全体は作り直さない（ガラス要素の作り直しが重く、判定後にもたつくため）
     const face = $(".face:not(.is-hidden)", flip);
-    face.classList.remove("in");
+    flip.removeAttribute("id");
+    flip.classList.add("leaving");
+    face.classList.remove("in", "next");
     face.classList.add(known ? "out-r" : "out-l");
-    setTimeout(() => { deck.i++; renderCards(); }, 280);
+    setTimeout(() => flip.remove(), 320);
+
+    if (deck.i >= deck.list.length) {
+      setTimeout(() => current === "cards" && renderCards(), 260);
+      return;
+    }
+    const next = deck.list[deck.i];
+    flip.insertAdjacentHTML("beforebegin", `<div class="flip" id="flip">${cardFace(next, false, "next")}${cardFace(next, true)}</div>`);
+    badgeEl.textContent = `${deck.i + 1} / ${deck.list.length}`;
+    const bar = $(".progress-line i", view);
+    if (bar) bar.style.width = `${(deck.i / deck.list.length) * 100}%`;
   }
 
   function bindCardHead() {

@@ -354,15 +354,18 @@ input { font: inherit; color: inherit; -webkit-user-select: text; user-select: t
 .progress-line { height: 4px; border-radius: 99px; background: rgba(255, 255, 255, 0.3); overflow: hidden; margin: 0 4px 16px; }
 .progress-line i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.5s var(--ease); }
 
-.flip-scene { height: min(58vh, 460px); margin-bottom: 18px; }
-.flip { position: relative; width: 100%; height: 100%; will-change: transform; }
+.flip-scene { position: relative; height: min(58vh, 460px); margin-bottom: 18px; }
+.flip { position: absolute; inset: 0; will-change: transform; }
+.flip.leaving { z-index: 2; pointer-events: none; }
 .flip > .face { position: absolute; inset: 0; }
 .face.is-hidden { visibility: hidden; pointer-events: none; }
-.face.out-l { animation: outL 0.3s var(--ease) forwards; }
-.face.out-r { animation: outR 0.3s var(--ease) forwards; }
+.face.out-l { animation: outL 0.28s var(--ease) forwards; }
+.face.out-r { animation: outR 0.28s var(--ease) forwards; }
 .face.in { animation: cardIn 0.6s var(--spring); }
+.face.next { animation: cardNext 0.3s var(--ease) both; }
 @keyframes outL { to { transform: translateX(-115%) rotate(-8deg); opacity: 0; } }
 @keyframes outR { to { transform: translateX(115%) rotate(8deg); opacity: 0; } }
+@keyframes cardNext { from { transform: scale(0.94); opacity: 0; } }
 @keyframes cardIn { from { transform: translateY(30px) scale(0.92); opacity: 0; } }
 
 .face {
