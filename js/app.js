@@ -46,7 +46,7 @@
   const STATUS_LABEL = ["未学習", "学習中", "覚えた"];
   const STATUS_CLASS = ["c-new", "c-learning", "c-mastered"];
 
-  let store = { progress: {}, settings: { quizCount: 10, quizMode: "mix" } };
+  let store = { progress: {}, settings: { quizCount: 10, quizMode: "mix", cardMode: "w2m" } };
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY));
     if (saved && typeof saved === "object") {
@@ -353,10 +353,16 @@
 
   function renderCards() {
     const total = deck.list.length;
-    const head = deck.custom
+    let head = deck.custom
       ? `<div class="count-note">苦手な単語を復習中</div>`
-      : `${catChips(cardOpts.cat)}
+      : `${catChips(cardOpts.cat)}`;
+    // 表に出す面の切り替え（タップするたびに 語→意味 / 意味→語 が入れ替わる）
+    const dirChip = `<button class="chip glass press" data-dir aria-label="表に出す面を切り替え"><span>⇄ ${store.settings.cardMode === "m2w" ? "意味 → 語" : "語 → 意味"}</span></button>`;
+    head += deck.custom
+      ? `<div class="toggles">${dirChip}</div>`
+      : `
         <div class="toggles">
+          ${dirChip}
           <button class="chip glass press ${cardOpts.onlyUnmastered ? "on" : ""}" data-opt="only"><span>未習得のみ</span></button>
           <button class="chip glass press ${cardOpts.shuffle ? "on" : ""}" data-opt="shuffle"><span>シャッフル</span></button>
         </div>`;
@@ -405,8 +411,11 @@
       return `<div class="face glass press ${enter ? "in" : ""}" data-flip>
         <span class="tag">${w.no !== null ? `${esc(noLabel(w))} ・ ` : ""}${esc(w.category)}</span>
         <span class="status-dot ${STATUS_CLASS[s]}"></span>
-        <div class="big-word fit" style="${fitLen(w)}">${esc(w.word)}</div>
-        <div class="tap-hint">タップで意味を表示</div>
+        ${store.settings.cardMode === "m2w"
+          ? `<div class="front-meaning">${esc(w.meaning)}</div>
+        <div class="tap-hint">タップで語を表示</div>`
+          : `<div class="big-word fit" style="${fitLen(w)}">${esc(w.word)}</div>
+        <div class="tap-hint">タップで意味を表示</div>`}
       </div>`;
     }
     return `<div class="face back glass press" data-flip>
@@ -461,6 +470,12 @@
     view.onclick = (e) => {
       const cat = e.target.closest("[data-cat]");
       if (cat) { cardOpts.cat = cat.dataset.cat; buildDeck(); return renderCards(); }
+      const dir = e.target.closest("[data-dir]");
+      if (dir) {
+        store.settings.cardMode = store.settings.cardMode === "m2w" ? "w2m" : "m2w";
+        save();
+        return renderCards();
+      }
       const opt = e.target.closest("[data-opt]");
       if (opt) {
         if (opt.dataset.opt === "only") cardOpts.onlyUnmastered = !cardOpts.onlyUnmastered;

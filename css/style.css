@@ -401,6 +401,14 @@ input { font: inherit; color: inherit; -webkit-user-select: text; user-select: t
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
+.front-meaning {
+  font-size: clamp(17px, 5.2vw, 21px);
+  font-weight: 700;
+  line-height: 1.8;
+  text-align: left;
+  max-height: calc(100% - 90px);
+  overflow-y: auto;
+}
 .face .tap-hint { position: absolute; bottom: 20px; left: 0; right: 0; z-index: 2; font-size: 12px; color: var(--ink-3); letter-spacing: 0.1em; }
 
 .back-word { font-family: var(--font-serif); font-weight: 800; font-size: 28px; line-height: 1.3; margin-top: 26px; --max: 28px; --pad: 96px; }
