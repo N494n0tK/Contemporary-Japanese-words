@@ -100,14 +100,111 @@
     toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
   }
 
-  // 押した位置から光が広がる
+  // ---------- ガラスに触れたときの質感 ----------
+  // 押す：指の位置に光が集まり、縁が光り、少し沈んで指の方へ引っぱられる
+  // 離す：ぷるんと揺れて戻り、指の位置から波紋が広がる（＋対応端末では軽い触覚フィードバック）
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let pressed = null;
+
+  // iOS 18 以降の Safari は、スイッチ型チェックボックスを切り替えると触覚フィードバックが出る
+  const haptic = (() => {
+    let label = null;
+    return () => {
+      if (navigator.vibrate) { navigator.vibrate(6); return; }
+      try {
+        if (!label) {
+          const wrap = document.createElement("div");
+          wrap.setAttribute("aria-hidden", "true");
+          wrap.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;clip-path:inset(50%)";
+          wrap.innerHTML = `<input type="checkbox" switch id="hapticSwitch" tabindex="-1"><label for="hapticSwitch"></label>`;
+          document.body.appendChild(wrap);
+          label = wrap.querySelector("label");
+        }
+        label.click();
+      } catch (_) {}
+    };
+  })();
+
+  const setLight = (el, x, y) => {
+    el.style.setProperty("--mx", `${x}px`);
+    el.style.setProperty("--my", `${y}px`);
+  };
+
+  function ripple(el, x, y, size) {
+    const d = Math.max(size.width, size.height) * 2.2;
+    const r = document.createElement("span");
+    r.className = "ripple";
+    r.style.left = `${x}px`;
+    r.style.top = `${y}px`;
+    el.appendChild(r);
+    r.animate(
+      [{ transform: "scale(1)", opacity: 1 }, { transform: `scale(${d / 10})`, opacity: 0 }],
+      { duration: 650, easing: "cubic-bezier(.2,.7,.3,1)" }
+    ).onfinish = () => r.remove();
+  }
+
+  // 離したときの揺れ。大きい要素ほど控えめにする
+  function jelly(el, k) {
+    el.animate(
+      [
+        { scale: `${1 - 0.04 * k}` },
+        { scale: `${1 + 0.035 * k} ${1 - 0.025 * k}`, offset: 0.3 },
+        { scale: `${1 - 0.012 * k} ${1 + 0.014 * k}`, offset: 0.58 },
+        { scale: `${1 + 0.004 * k} ${1 - 0.004 * k}`, offset: 0.8 },
+        { scale: "1" },
+      ],
+      { duration: 560, easing: "ease-out" }
+    );
+  }
+
+  function release(tap) {
+    if (!pressed) return;
+    const { el, k, lx, ly, r } = pressed;
+    pressed = null;
+    el.classList.remove("is-pressed");
+    el.style.setProperty("--pull-x", "0px");
+    el.style.setProperty("--pull-y", "0px");
+    if (!tap || !el.isConnected) return;
+    haptic();
+    if (reduceMotion) return;
+    // カード本体はめくる動きがあるので、揺れと波紋はボタン類だけ
+    if (!el.matches(".face")) {
+      jelly(el, k);
+      ripple(el, lx, ly, r);
+    }
+  }
+
   document.addEventListener("pointerdown", (e) => {
     const el = e.target.closest(".press");
-    if (!el) return;
+    if (!el || el.disabled || (e.pointerType === "mouse" && e.button !== 0)) return;
     const r = el.getBoundingClientRect();
-    el.style.setProperty("--mx", `${e.clientX - r.left}px`);
-    el.style.setProperty("--my", `${e.clientY - r.top}px`);
+    const lx = e.clientX - r.left;
+    const ly = e.clientY - r.top;
+    // 小さいボタンはしっかり、大きいカードはわずかに沈む
+    const k = Math.max(0.3, Math.min(1, 140 / Math.max(r.width, r.height)));
+    el.style.setProperty("--press-scale", String(1 - 0.045 * k));
+    setLight(el, lx, ly);
+    el.classList.add("is-pressed");
+    pressed = { el, id: e.pointerId, x0: e.clientX, y0: e.clientY, k, lx, ly, r };
   }, { passive: true });
+
+  document.addEventListener("pointermove", (e) => {
+    if (!pressed || e.pointerId !== pressed.id) return;
+    const { el, r, x0, y0, k } = pressed;
+    const dx = e.clientX - x0;
+    const dy = e.clientY - y0;
+    // 指を大きく動かしたら（スクロールなど）押下をやめる
+    if (Math.hypot(dx, dy) > 14) return release(false);
+    pressed.lx = e.clientX - r.left;
+    pressed.ly = e.clientY - r.top;
+    setLight(el, pressed.lx, pressed.ly);
+    // 指の方へ液体のように少しだけ引っぱられる
+    el.style.setProperty("--pull-x", `${(dx * 0.35 * k).toFixed(2)}px`);
+    el.style.setProperty("--pull-y", `${(dy * 0.35 * k).toFixed(2)}px`);
+  }, { passive: true });
+
+  document.addEventListener("pointerup", (e) => { if (pressed && e.pointerId === pressed.id) release(true); }, { passive: true });
+  document.addEventListener("pointercancel", () => release(false), { passive: true });
 
   // ---------- ルーティング（履歴は使わない＝戻る操作でアプリを離れない） ----------
   let current = "home";

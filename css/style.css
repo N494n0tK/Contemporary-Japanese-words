@@ -135,46 +135,102 @@ input { font: inherit; color: inherit; -webkit-user-select: text; user-select: t
     var(--glass-shadow);
   isolation: isolate;
 }
-/* 縁の反射（スペキュラー） */
+/* 押したときに縁の光を強める量（0〜1）。アニメーションさせるために型を登録しておく */
+@property --rim-hot { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --bloom { syntax: "<number>"; inherits: true; initial-value: 0; }
+
+/* 縁の反射（スペキュラー）。押している間は指の位置の縁が強く光る */
 .glass::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg, var(--glass-rim) 0%, rgba(255, 255, 255, 0) 32%, rgba(255, 255, 255, 0) 64%, var(--glass-rim) 100%);
+  padding: calc(1px + var(--rim-hot) * 0.75px);
+  background:
+    radial-gradient(180px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, var(--rim-hot)) 0%, rgba(255, 255, 255, calc(var(--rim-hot) * 0.5)) 35%, rgba(255, 255, 255, 0) 75%),
+    linear-gradient(135deg, var(--glass-rim) 0%, rgba(255, 255, 255, 0) 32%, rgba(255, 255, 255, 0) 64%, var(--glass-rim) 100%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
   pointer-events: none;
-  z-index: 1;
+  z-index: 3;
 }
 
-/* 押したときの光（JSで --mx / --my を更新） */
+/* ---------- 触ったときの質感（JS が .is-pressed / --mx / --my / --pull-* を更新） ---------- */
 .press {
   overflow: hidden;
-  transition: transform 0.45s var(--spring), background-color 0.3s;
+  --press-scale: 0.96;
+  /* 離したとき：ばねで戻る。光はゆっくり引いていく */
+  transition:
+    scale 0.55s var(--spring),
+    translate 0.55s var(--spring),
+    --rim-hot 0.7s var(--ease),
+    --bloom 0.6s var(--ease),
+    box-shadow 0.5s var(--ease),
+    background-color 0.3s;
 }
+.press.is-pressed {
+  /* 押している間：少し沈み、指の方へ液体のように引っぱられる */
+  scale: var(--press-scale);
+  translate: var(--pull-x, 0px) var(--pull-y, 0px);
+  --rim-hot: 1;
+  --bloom: 1;
+  transition:
+    scale 0.2s cubic-bezier(0.2, 0.9, 0.3, 1),
+    translate 0.12s linear,
+    --rim-hot 0.15s ease-out,
+    --bloom 0.18s ease-out,
+    box-shadow 0.2s ease-out,
+    background-color 0.3s;
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-hi),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    inset 0 0 26px -6px rgba(255, 255, 255, 0.55),
+    0 10px 26px -16px rgba(30, 36, 90, 0.5);
+}
+/* 押している間はガラスが少し明るくなる（色付きのボタンは色を保つ） */
+.press.is-pressed:not([class*="tint-"]):not(.correct):not(.wrong) {
+  background-color: var(--glass-press, rgba(255, 255, 255, 0.5));
+}
+/* 指の下に集まる光（ガラスの中で光が屈折しているような明るさ） */
 .press::after {
   content: "";
   position: absolute;
   left: var(--mx, 50%);
   top: var(--my, 50%);
-  width: 220px;
-  height: 220px;
-  margin: -110px 0 0 -110px;
+  width: 260px;
+  height: 260px;
+  margin: -130px 0 0 -130px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 60%);
-  opacity: 0;
-  transform: scale(0.4);
-  transition: opacity 0.5s, transform 0.6s var(--ease);
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.5) 18%, rgba(255, 255, 255, 0.12) 40%, rgba(255, 255, 255, 0) 60%);
+  opacity: var(--bloom);
+  transform: scale(calc(0.45 + var(--bloom) * 0.55));
+  mix-blend-mode: plus-lighter;
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
 }
-.press:active { transform: scale(0.965); }
-.press:active::after { opacity: 1; transform: scale(1); transition-duration: 0.12s; }
 .press > * { position: relative; z-index: 2; }
+/* 離したときに広がる波紋（JS が要素を差し込む） */
+.press > .ripple {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  pointer-events: none;
+  /* 明るい輪の外側にうっすら影を付け、水滴が広がるような屈折に見せる */
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 42%, rgba(255, 255, 255, 0.95) 60%, rgba(70, 80, 170, 0.14) 67%, rgba(70, 80, 170, 0) 74%);
+}
+@media (prefers-color-scheme: dark) {
+  .press { --glass-press: rgba(255, 255, 255, 0.17); }
+  .press::after { background: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.2) 20%, rgba(255, 255, 255, 0.05) 42%, rgba(255, 255, 255, 0) 60%); }
+  .press > .ripple { background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 42%, rgba(255, 255, 255, 0.55) 60%, rgba(0, 0, 0, 0.18) 67%, rgba(0, 0, 0, 0) 74%); }
+}
 
 /* ---------- トップバー ---------- */
 .topbar {
