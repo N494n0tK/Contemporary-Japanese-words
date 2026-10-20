@@ -7,9 +7,11 @@
   // ---------- データ ----------
   const WORDS = (() => {
     const seen = new Set();
-    return (window.WORDS || [])
+    const seenNo = new Set();
+    const list = (window.WORDS || [])
       .filter((w) => w && w.word && w.meaning && !seen.has(w.word) && seen.add(w.word))
       .map((w) => ({
+        no: w.no === undefined || w.no === null || w.no === "" ? null : w.no,
         word: String(w.word),
         reading: w.reading ? String(w.reading) : "",
         meaning: String(w.meaning),
@@ -18,7 +20,21 @@
         synonyms: Array.isArray(w.synonyms) ? w.synonyms : [],
         antonyms: Array.isArray(w.antonyms) ? w.antonyms : [],
       }));
+    list.forEach((w) => {
+      if (w.no === null) return;
+      if (seenNo.has(String(w.no))) console.warn(`整理番号 ${w.no} が重複しています（${w.word}）`);
+      seenNo.add(String(w.no));
+    });
+    // 整理番号順に並べる（番号のない語は末尾、書いた順のまま）
+    return list
+      .map((w, i) => [w, i])
+      .sort(([a, i], [b, j]) => {
+        if (a.no === null || b.no === null) return a.no === null && b.no === null ? i - j : a.no === null ? 1 : -1;
+        return String(a.no).localeCompare(String(b.no), "ja", { numeric: true }) || i - j;
+      })
+      .map(([w]) => w);
   })();
+  const noLabel = (w) => (w.no === null ? "" : `No.${w.no}`);
   const CATEGORIES = [...new Set(WORDS.map((w) => w.category))];
   const BY_WORD = new Map(WORDS.map((w) => [w.word, w]));
 
@@ -134,7 +150,7 @@
     return `<div class="word-row glass press" data-word="${esc(w.word)}" role="button" tabindex="0">
       <span class="dot ${STATUS_CLASS[p.s || 0]}"></span>
       <div class="grow">
-        <div class="w">${esc(w.word)} <span class="r">${esc(w.reading)}</span></div>
+        <div class="w">${w.no !== null ? `<span class="num">${esc(noLabel(w))}</span>` : ""}${esc(w.word)} <span class="r">${esc(w.reading)}</span></div>
         <div class="m">${esc(w.meaning)}</div>
       </div>
       <button class="star ${p.star ? "on" : ""}" data-star="${esc(w.word)}" aria-label="お気に入り">${p.star ? "★" : "☆"}</button>
@@ -170,8 +186,9 @@
     const render = () => {
       const p = prog(word);
       sheet.innerHTML = `
-        <div class="grabber"></div>
-        <div class="tag" style="display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.3);color:var(--ink-2)">${esc(w.category)}</div>
+        <div class="grab-zone" aria-label="下に引っ張って閉じる"><div class="grabber"></div></div>
+        <div class="sheet-body">
+        <div class="sheet-tag">${w.no !== null ? `${esc(noLabel(w))} ・ ` : ""}${esc(w.category)}</div>
         <div class="back-word" style="margin-top:10px">${esc(w.word)}</div>
         <div class="back-reading">${esc(w.reading)}</div>
         <div class="back-meaning">${esc(w.meaning)}</div>
@@ -182,7 +199,8 @@
           <button class="btn small glass press" data-act="star"><span>${p.star ? "★ 苦手から外す" : "☆ 苦手に追加"}</span></button>
           <button class="btn small glass press" data-act="close"><span>閉じる</span></button>
         </div>
-        <div style="text-align:center;font-size:12px;color:var(--ink-3);margin-top:12px">正解 ${p.ok || 0} ・ 不正解 ${p.ng || 0}</div>`;
+        <div style="text-align:center;font-size:12px;color:var(--ink-3);margin-top:12px">正解 ${p.ok || 0} ・ 不正解 ${p.ng || 0}</div>
+        </div>`;
     };
     render();
     sheet.onclick = (e) => {
@@ -206,6 +224,41 @@
   function closeSheet() { sheetWrap.classList.remove("open"); }
   sheetWrap.addEventListener("click", (e) => { if (e.target === sheetWrap) closeSheet(); });
   const sheetOpen = () => sheetWrap.classList.contains("open");
+
+  // 上の掴み部分を下に引っ張って閉じる
+  let sd = null;
+  sheet.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest(".grab-zone") || !sheetOpen()) return;
+    const now = performance.now();
+    sd = { id: e.pointerId, y0: e.clientY, y: e.clientY, py: e.clientY, pt: now, v: 0 };
+    sheet.setPointerCapture(e.pointerId);
+    sheetWrap.classList.add("dragging");
+  });
+  sheet.addEventListener("pointermove", (e) => {
+    if (!sd || e.pointerId !== sd.id) return;
+    const now = performance.now();
+    if (now > sd.pt) sd.v = (e.clientY - sd.py) / (now - sd.pt);
+    sd.py = e.clientY;
+    sd.pt = now;
+    sd.y = e.clientY;
+    const dy = sd.y - sd.y0;
+    // 上方向は少しだけ動くゴムのような抵抗
+    const shown = dy >= 0 ? dy : -Math.sqrt(-dy) * 2;
+    sheet.style.transform = `translateY(${shown}px)`;
+    sheetWrap.style.setProperty("--dim", String(Math.max(0, 1 - Math.max(0, dy) / sheet.offsetHeight)));
+  });
+  const endSheetDrag = (e) => {
+    if (!sd || e.pointerId !== sd.id) return;
+    const dy = sd.y - sd.y0;
+    const v = sd.v;
+    sd = null;
+    sheetWrap.classList.remove("dragging");
+    sheet.style.transform = "";
+    sheetWrap.style.removeProperty("--dim");
+    if (v > 0.5 || (dy > Math.min(120, sheet.offsetHeight * 0.3) && v > -0.2)) closeSheet();
+  };
+  sheet.addEventListener("pointerup", endSheetDrag);
+  sheet.addEventListener("pointercancel", endSheetDrag);
 
   // ============================================================
   // 画面
@@ -347,14 +400,14 @@
     const s = statusOf(w.word);
     if (!back) {
       return `<div class="face glass press ${enter ? "in" : ""}" data-flip>
-        <span class="tag">${esc(w.category)}</span>
+        <span class="tag">${w.no !== null ? `${esc(noLabel(w))} ・ ` : ""}${esc(w.category)}</span>
         <span class="status-dot ${STATUS_CLASS[s]}"></span>
         <div class="big-word ${w.word.length > 5 ? "long" : ""}">${esc(w.word)}</div>
         <div class="tap-hint">タップで意味を表示</div>
       </div>`;
     }
     return `<div class="face back glass press" data-flip>
-      <span class="tag">${esc(w.category)}</span>
+      <span class="tag">${w.no !== null ? `${esc(noLabel(w))} ・ ` : ""}${esc(w.category)}</span>
       <div class="back-word">${esc(w.word)}</div>
       <div class="back-reading">${esc(w.reading)}</div>
       <div class="back-meaning">${esc(w.meaning)}</div>
@@ -567,7 +620,7 @@
     view.innerHTML = `
       <label class="search glass">
         <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        <input id="q" type="search" placeholder="語・読み・意味で検索" value="${esc(listOpts.q)}" autocomplete="off" enterkeyhint="search">
+        <input id="q" type="search" placeholder="語・読み・意味・番号で検索" value="${esc(listOpts.q)}" autocomplete="off" enterkeyhint="search">
       </label>
       <div id="listCats">${catChips(listOpts.cat)}</div>
       <div id="listSt">${chipRow([["all", "すべて"], ["0", "未学習"], ["1", "学習中"], ["2", "覚えた"], ["star", "★"]], listOpts.st, "st")}</div>
@@ -582,7 +635,7 @@
         const p = prog(w.word);
         if (listOpts.st === "star" && !p.star) return false;
         if (/^\d$/.test(listOpts.st) && (p.s || 0) !== Number(listOpts.st)) return false;
-        if (q && !(w.word + w.reading + w.meaning + w.synonyms.join("") + w.antonyms.join("")).toLowerCase().includes(q)) return false;
+        if (q && String(w.no ?? "").toLowerCase() !== q.replace(/^no\.?\s*/, "") && !(w.word + w.reading + w.meaning + w.synonyms.join("") + w.antonyms.join("")).toLowerCase().includes(q)) return false;
         return true;
       });
       $("#countNote").textContent = `${ws.length}語`;
@@ -644,7 +697,7 @@
       </div>
       <div class="glass setting">
         <h3>単語の追加</h3>
-        <p><code>data/words.js</code> の配列に <code>{ word, reading, meaning, example, category }</code> を追加すると自動で反映されます。</p>
+        <p><code>data/words.js</code> の配列に <code>{ no, word, reading, meaning, example, category }</code> を追加すると自動で反映されます。</p>
       </div>
       <div class="glass setting">
         <h3>ホーム画面に追加</h3>
