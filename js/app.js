@@ -46,7 +46,7 @@
   const STATUS_LABEL = ["未学習", "学習中", "覚えた"];
   const STATUS_CLASS = ["c-new", "c-learning", "c-mastered"];
 
-  let store = { progress: {}, settings: { quizCount: 10, quizMode: "mix", cardMode: "w2m" } };
+  let store = { progress: {}, settings: { quizCount: 10, quizMode: "mix", cardMode: "w2m", cardFilter: "all" } };
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY));
     if (saved && typeof saved === "object") {
@@ -440,14 +440,34 @@
   };
 
   // ---------- 単語カード ----------
-  const cardOpts = { cat: "all", onlyUnmastered: false, shuffle: true };
+  const cardOpts = { cat: "all", shuffle: true };
   let deck = null;
 
+  // カードの絞り込み（学習状況で出す単語を選ぶ）
+  const CARD_FILTERS = [
+    ["all", "すべて", () => true],
+    ["new", "未学習", (p) => (p.s || NEW) === NEW],
+    ["missed", "ミスした", (p) => p.ng > 0 && p.s !== MASTERED],
+    ["unmastered", "未習得", (p) => p.s !== MASTERED],
+    ["mastered", "覚えた", (p) => p.s === MASTERED],
+    ["star", "★", (p) => !!p.star],
+  ];
+  const cardFilterFn = (key) => (CARD_FILTERS.find(([k]) => k === key) || CARD_FILTERS[0])[2];
+  const inCat = (w) => cardOpts.cat === "all" || w.category === cardOpts.cat;
+
   function buildDeck(words) {
-    let ws = words || WORDS.filter((w) => cardOpts.cat === "all" || w.category === cardOpts.cat);
-    if (!words && cardOpts.onlyUnmastered) ws = ws.filter((w) => statusOf(w.word) !== MASTERED);
+    const match = cardFilterFn(store.settings.cardFilter);
+    let ws = words || WORDS.filter((w) => inCat(w) && match(prog(w.word)));
     if (cardOpts.shuffle) ws = shuffle(ws);
-    deck = { list: ws, i: 0, known: 0, unknown: 0, custom: !!words };
+    deck = { list: ws, i: 0, known: 0, unknown: 0, missed: [], custom: !!words };
+  }
+
+  function filterChips() {
+    const ws = WORDS.filter(inCat);
+    return `<div class="chips" data-noswipe>${CARD_FILTERS.map(([k, label, fn]) => {
+      const n = ws.filter((w) => fn(prog(w.word))).length;
+      return `<button class="chip glass press ${store.settings.cardFilter === k ? "on" : ""}" data-filter="${k}"><span>${label} <span class="chip-n">${n}</span></span></button>`;
+    }).join("")}</div>`;
   }
 
   VIEWS.cards = (params = {}) => {
@@ -460,8 +480,8 @@
   function renderCards() {
     const total = deck.list.length;
     let head = deck.custom
-      ? `<div class="count-note">苦手な単語を復習中</div>`
-      : `${catChips(cardOpts.cat)}`;
+      ? `<div class="count-note">${deck.list.length}枚を復習中</div>`
+      : `${catChips(cardOpts.cat)}${filterChips()}`;
     // 表に出す面の切り替え（タップするたびに 語→意味 / 意味→語 が入れ替わる）
     const dirChip = `<button class="chip glass press" data-dir aria-label="表に出す面を切り替え"><span>⇄ ${store.settings.cardMode === "m2w" ? "意味 → 語" : "語 → 意味"}</span></button>`;
     head += deck.custom
@@ -469,13 +489,12 @@
       : `
         <div class="toggles">
           ${dirChip}
-          <button class="chip glass press ${cardOpts.onlyUnmastered ? "on" : ""}" data-opt="only"><span>未習得のみ</span></button>
           <button class="chip glass press ${cardOpts.shuffle ? "on" : ""}" data-opt="shuffle"><span>シャッフル</span></button>
         </div>`;
 
     if (!total) {
       badgeEl.textContent = "";
-      view.innerHTML = `${head}<div class="glass result"><div class="msg">該当する単語がありません</div><p style="color:var(--ink-2)">条件を変えてみてください。</p></div>`;
+      view.innerHTML = `${head}<div class="glass result"><div class="msg">該当する単語がありません</div><p style="color:var(--ink-2)">${store.settings.cardFilter === "missed" ? "ミスした単語はありません。" : "条件を変えてみてください。"}</p></div>`;
       bindCardHead();
       return;
     }
@@ -488,7 +507,8 @@
           <div style="font-size:44px">🎉</div>
           <div class="msg">${total}枚 完了！</div>
           <p style="color:var(--ink-2);margin:4px 0 18px">覚えた ${deck.known} ・ まだ ${deck.unknown}</p>
-          <button class="btn primary block press" data-act="again"><span>もう一度</span></button>
+          ${deck.missed.length ? `<button class="btn primary block press" data-act="missed"><span>「まだ」の${deck.missed.length}枚をもう一度</span></button><div style="height:10px"></div>` : ""}
+          <button class="btn ${deck.missed.length ? "glass" : "primary"} block press" data-act="again"><span>もう一度</span></button>
           <div class="btn-row">
             <button class="btn glass press" data-act="quiz"><span>クイズで確認</span></button>
             <button class="btn glass press" data-act="home"><span>ホーム</span></button>
@@ -580,6 +600,7 @@
     } else {
       setProg(w.word, { s: LEARNING, ng: (p.ng || 0) + 1, streak: 0 });
       deck.unknown++;
+      deck.missed.push(w);
     }
 
     // 1) 今のカードを判定の方向へスッと飛ばす（覚えた → 右 / まだ → 左）
@@ -629,11 +650,17 @@
         save();
         return renderCards();
       }
+      const filter = e.target.closest("[data-filter]");
+      if (filter) {
+        store.settings.cardFilter = filter.dataset.filter;
+        save();
+        buildDeck();
+        return renderCards();
+      }
       const opt = e.target.closest("[data-opt]");
       if (opt) {
-        if (opt.dataset.opt === "only") cardOpts.onlyUnmastered = !cardOpts.onlyUnmastered;
-        else cardOpts.shuffle = !cardOpts.shuffle;
-        buildDeck();
+        cardOpts.shuffle = !cardOpts.shuffle;
+        deck.custom ? buildDeck(deck.list) : buildDeck();
         return renderCards();
       }
       if (e.target.closest("[data-flip]")) return flipCard();
@@ -642,6 +669,7 @@
       const act = e.target.closest("[data-act]");
       if (!act) return;
       if (act.dataset.act === "again") { deck.custom ? buildDeck(deck.list) : buildDeck(); renderCards(); }
+      else if (act.dataset.act === "missed") { buildDeck(deck.missed); renderCards(); }
       else if (act.dataset.act === "quiz") go("quiz", { cat: cardOpts.cat });
       else go("home");
     };

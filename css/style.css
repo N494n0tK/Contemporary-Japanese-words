@@ -410,7 +410,9 @@ input { font: inherit; color: inherit; -webkit-user-select: text; user-select: t
 .progress-line { height: 4px; border-radius: 99px; background: rgba(255, 255, 255, 0.3); overflow: hidden; margin: 0 4px 16px; }
 .progress-line i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.5s var(--ease); }
 
-.flip-scene { position: relative; height: min(58vh, 460px); margin-bottom: 18px; }
+/* 画面に収まる高さ（上のチップ類・下のボタンを除いた残り）。小さい画面では最低限の高さを確保 */
+.flip-scene { position: relative; height: min(52vh, 440px); height: clamp(280px, calc(100svh - 384px - var(--safe-t) - var(--safe-b)), 460px); margin-bottom: 18px; }
+.chip-n { font-size: 11px; opacity: 0.7; margin-left: 2px; font-variant-numeric: tabular-nums; }
 .flip {
   position: absolute;
   inset: 0;
