@@ -34,6 +34,8 @@
       })
       .map(([w]) => w);
   })();
+  // 見出し語の文字数（.fit が1行に収まる文字サイズを計算するのに使う）
+  const fitLen = (w) => `--len:${[...w.word].length}`;
   const noLabel = (w) => (w.no === null ? "" : `No.${w.no}`);
   const CATEGORIES = [...new Set(WORDS.map((w) => w.category))];
   const BY_WORD = new Map(WORDS.map((w) => [w.word, w]));
@@ -113,6 +115,7 @@
 
   function go(name, params = {}) {
     current = name;
+    closeSheet();
     titleEl.textContent = TITLES[name] || "";
     badgeEl.textContent = "";
     $$(".drawer-nav button").forEach((b) => b.classList.toggle("on", b.dataset.nav === name));
@@ -189,7 +192,7 @@
         <div class="grab-zone" aria-label="下に引っ張って閉じる"><div class="grabber"></div></div>
         <div class="sheet-body">
         <div class="sheet-tag">${w.no !== null ? `${esc(noLabel(w))} ・ ` : ""}${esc(w.category)}</div>
-        <div class="back-word" style="margin-top:10px">${esc(w.word)}</div>
+        <div class="back-word fit" style="margin-top:10px;${fitLen(w)}">${esc(w.word)}</div>
         <div class="back-reading">${esc(w.reading)}</div>
         <div class="back-meaning">${esc(w.meaning)}</div>
         ${w.example ? `<div class="back-example">${esc(w.example)}</div>` : ""}
@@ -402,13 +405,13 @@
       return `<div class="face glass press ${enter ? "in" : ""}" data-flip>
         <span class="tag">${w.no !== null ? `${esc(noLabel(w))} ・ ` : ""}${esc(w.category)}</span>
         <span class="status-dot ${STATUS_CLASS[s]}"></span>
-        <div class="big-word ${w.word.length > 5 ? "long" : ""}">${esc(w.word)}</div>
+        <div class="big-word fit" style="${fitLen(w)}">${esc(w.word)}</div>
         <div class="tap-hint">タップで意味を表示</div>
       </div>`;
     }
     return `<div class="face back glass press" data-flip>
       <span class="tag">${w.no !== null ? `${esc(noLabel(w))} ・ ` : ""}${esc(w.category)}</span>
-      <div class="back-word">${esc(w.word)}</div>
+      <div class="back-word fit" style="${fitLen(w)}">${esc(w.word)}</div>
       <div class="back-reading">${esc(w.reading)}</div>
       <div class="back-meaning">${esc(w.meaning)}</div>
       ${w.example ? `<div class="back-example">${esc(w.example)}</div>` : ""}
@@ -542,7 +545,7 @@
       <div class="progress-line"><i style="width:${(quiz.i / quiz.qs.length) * 100}%"></i></div>
       <div class="q-card glass">
         <div class="q-kind">${isW2M ? "この語の意味は？" : "この意味を表す語は？"}</div>
-        ${isW2M ? `<div class="q-word">${esc(q.w.word)}</div>` : `<div class="q-meaning">${esc(q.w.meaning)}</div>`}
+        ${isW2M ? `<div class="q-word fit" style="${fitLen(q.w)}">${esc(q.w.word)}</div>` : `<div class="q-meaning">${esc(q.w.meaning)}</div>`}
       </div>
       <div class="options">
         ${q.options.map((o, i) => `<button class="opt glass press ${isW2M ? "" : "serif"}" data-opt="${i}"><span class="no">${i + 1}</span><span>${esc(isW2M ? o.meaning : o.word)}</span></button>`).join("")}
