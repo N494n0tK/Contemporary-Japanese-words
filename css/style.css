@@ -226,7 +226,9 @@ input { font: inherit; color: inherit; -webkit-user-select: text; user-select: t
 .view {
   position: relative;
   z-index: 1;
-  min-height: 100%;
+  /* 中身が短い画面でも必ず少しだけスクロールできる高さにする。
+     iOS のホーム画面アプリはスクロールしないページだと下端に帯が出るため */
+  min-height: calc(100% + var(--safe-t) + 1px);
   padding: calc(var(--safe-t) + var(--top-h) + 24px) var(--gutter) calc(var(--safe-b) + 32px);
   max-width: 640px;
   margin: 0 auto;
