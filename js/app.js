@@ -396,7 +396,7 @@
     view.innerHTML = `${head}
       <div class="progress-line"><i style="width:${(deck.i / total) * 100}%"></i></div>
       <div class="flip-scene">
-        <div class="flip" id="flip">${cardFace(w, false, true)}</div>
+        <div class="flip" id="flip">${cardFace(w, false, true)}${cardFace(w, true)}</div>
       </div>
       <div class="answer-row">
         <button class="btn glass press tint-bad" data-ans="0"><span>まだ</span></button>
@@ -418,7 +418,7 @@
         <div class="tap-hint">タップで意味を表示</div>`}
       </div>`;
     }
-    return `<div class="face back glass press" data-flip>
+    return `<div class="face back glass press is-hidden" data-flip>
       <span class="tag">${w.no !== null ? `${esc(noLabel(w))} ・ ` : ""}${esc(w.category)}</span>
       <div class="back-word fit" style="${fitLen(w)}">${esc(w.word)}</div>
       <div class="back-reading">${esc(w.reading)}</div>
@@ -432,15 +432,19 @@
     const flip = $("#flip");
     if (!flip || flip.dataset.busy) return;
     flip.dataset.busy = "1";
-    const w = deck.list[deck.i];
+    // 表と裏は最初から両方描画しておき、半分回ったところで見える面を入れ替えるだけにする
+    // （途中で DOM を作り直すとガラスの再描画が走り、めくりがもたつく）
+    const [front, back] = $$(".face", flip);
     const toBack = !flip.dataset.back;
-    const a = flip.animate([{ transform: "scaleX(1)" }, { transform: "scaleX(0.01)" }], { duration: 150, easing: "cubic-bezier(.5,0,1,1)", fill: "forwards" });
+    const a = flip.animate([{ transform: "scaleX(1)" }, { transform: "scaleX(0)" }], { duration: 110, easing: "cubic-bezier(.4,0,.9,.6)", fill: "forwards" });
     a.onfinish = () => {
-      flip.innerHTML = cardFace(w, toBack);
+      front.classList.remove("in");
+      front.classList.toggle("is-hidden", toBack);
+      back.classList.toggle("is-hidden", !toBack);
       if (toBack) flip.dataset.back = "1"; else delete flip.dataset.back;
       const b = flip.animate(
-        [{ transform: "scaleX(0.01)" }, { transform: "scaleX(1.04)", offset: 0.65 }, { transform: "scaleX(1)" }],
-        { duration: 360, easing: "cubic-bezier(.1,.7,.3,1)" }
+        [{ transform: "scaleX(0)" }, { transform: "scaleX(1.03)", offset: 0.7 }, { transform: "scaleX(1)" }],
+        { duration: 300, easing: "cubic-bezier(.15,.8,.3,1)" }
       );
       a.cancel();
       b.onfinish = () => delete flip.dataset.busy;
@@ -460,7 +464,7 @@
       setProg(w.word, { s: LEARNING, ng: (p.ng || 0) + 1, streak: 0 });
       deck.unknown++;
     }
-    const face = $(".face", flip);
+    const face = $(".face:not(.is-hidden)", flip);
     face.classList.remove("in");
     face.classList.add(known ? "out-r" : "out-l");
     setTimeout(() => { deck.i++; renderCards(); }, 280);
@@ -559,6 +563,7 @@
     view.innerHTML = `
       <div class="progress-line"><i style="width:${(quiz.i / quiz.qs.length) * 100}%"></i></div>
       <div class="q-card glass">
+        ${q.w.no !== null ? `<div class="q-no">${esc(noLabel(q.w))}</div>` : ""}
         <div class="q-kind">${isW2M ? "この語の意味は？" : "この意味を表す語は？"}</div>
         ${isW2M ? `<div class="q-word fit" style="${fitLen(q.w)}">${esc(q.w.word)}</div>` : `<div class="q-meaning">${esc(q.w.meaning)}</div>`}
       </div>
@@ -598,7 +603,7 @@
     $("#fb").innerHTML = `
       <div class="feedback glass">
         <div style="font-weight:700;color:${correct ? "var(--good)" : "var(--bad)"};margin-bottom:4px">${correct ? "正解！" : "不正解"}</div>
-        <div><b>${esc(q.w.word)}</b>（${esc(q.w.reading)}）</div>
+        <div>${q.w.no !== null ? `<span class="fb-no">${esc(noLabel(q.w))}</span>` : ""}<b>${esc(q.w.word)}</b>（${esc(q.w.reading)}）</div>
         <div style="margin-top:2px">${esc(q.w.meaning)}</div>
         ${q.w.example ? `<div style="margin-top:6px;color:var(--ink-2);font-family:var(--font-serif)">例）${esc(q.w.example)}</div>` : ""}
       </div>

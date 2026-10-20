@@ -355,7 +355,9 @@ input { font: inherit; color: inherit; -webkit-user-select: text; user-select: t
 .progress-line i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.5s var(--ease); }
 
 .flip-scene { height: min(58vh, 460px); margin-bottom: 18px; }
-.flip { width: 100%; height: 100%; will-change: transform; }
+.flip { position: relative; width: 100%; height: 100%; will-change: transform; }
+.flip > .face { position: absolute; inset: 0; }
+.face.is-hidden { visibility: hidden; pointer-events: none; }
 .face.out-l { animation: outL 0.3s var(--ease) forwards; }
 .face.out-r { animation: outR 0.3s var(--ease) forwards; }
 .face.in { animation: cardIn 0.6s var(--spring); }
@@ -454,6 +456,19 @@ input { font: inherit; color: inherit; -webkit-user-select: text; user-select: t
 /* ---------- クイズ ---------- */
 .q-card { padding: 26px 22px; margin-bottom: 16px; min-height: 180px; display: flex; flex-direction: column; justify-content: center; text-align: center; --radius: 32px; }
 .q-card > * { position: relative; z-index: 2; }
+.q-no {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 3px 12px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.3);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.fb-no { font-size: 12px; font-weight: 700; color: var(--ink-2); margin-right: 8px; font-variant-numeric: tabular-nums; }
 .q-kind { font-size: 12px; color: var(--ink-2); letter-spacing: 0.1em; margin-bottom: 10px; font-weight: 700; }
 .q-word { font-family: var(--font-serif); font-weight: 800; font-size: clamp(34px, 11vw, 52px); line-height: 1.25; --max: clamp(34px, 11vw, 52px); --pad: 90px; }
 .q-meaning { font-size: 17px; font-weight: 700; line-height: 1.7; text-align: left; }
@@ -618,7 +633,7 @@ body.dragging .drawer, body.dragging .scrim { transition: none; }
 
 @media (prefers-color-scheme: dark) {
   .drawer-nav button.on { background: rgba(255, 255, 255, 0.14); }
-  .stat, .face .tag, .sheet-tag, .rel .pill, .back-example, .opt .no, .drawer-nav .ni { background: rgba(255, 255, 255, 0.1); }
+  .stat, .face .tag, .sheet-tag, .q-no, .rel .pill, .back-example, .opt .no, .drawer-nav .ni { background: rgba(255, 255, 255, 0.1); }
   .ring .track, .mini-bar, .progress-line { background: rgba(255, 255, 255, 0.12); stroke: rgba(255, 255, 255, 0.14); }
 }
 
