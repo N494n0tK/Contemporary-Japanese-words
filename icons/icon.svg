@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b6cff"/>
+      <stop offset="0.55" stop-color="#9b5cff"/>
+      <stop offset="1" stop-color="#ff7ab0"/>
+    </linearGradient>
+    <linearGradient id="gl" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#fff" stop-opacity=".08"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="120" cy="110" r="150" fill="#fff" opacity=".18"/>
+  <rect x="96" y="96" width="320" height="320" rx="80" fill="url(#gl)" stroke="#fff" stroke-opacity=".7" stroke-width="4"/>
+  <text x="256" y="262" text-anchor="middle" dominant-baseline="central" font-family="'Shippori Mincho B1','Hiragino Mincho ProN','IPAMincho','IPAGothic',serif" font-weight="800" font-size="210" fill="#fff">語</text>
+</svg>
